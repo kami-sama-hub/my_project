@@ -1,0 +1,135 @@
+<!-- admin.html (优化版 - 带登录功能的后台管理页面) -->
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>青蛙快递 - 后台管理</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+        input, button { padding: 10px; margin: 10px; font-size: 16px; }
+        table { width: 80%; margin: auto; border-collapse: collapse; }
+        th, td { padding: 10px; border: 1px solid #ddd; text-align: center; }
+        th { background-color: #f4f4f4; }
+        #adminPanel { display: none; }
+    </style>
+</head>
+<body>
+    <h1>🔧 青蛙快递后台管理</h1>
+    
+    <!-- 登录界面 -->
+    <div id="loginPanel">
+        <h2>管理员登录</h2>
+        <input type="text" id="username" placeholder="请输入用户名">
+        <input type="password" id="password" placeholder="请输入密码">
+        <button onclick="login()">登录</button>
+        <p id="loginMessage" style="color: red;"></p>
+    </div>
+
+    <!-- 后台管理界面 -->
+    <div id="adminPanel">
+        <p>录入新的快递信息：</p>
+        <input type="text" id="trackingNumber" placeholder="请输入快递单号">
+        <input type="text" id="status" placeholder="请输入快递状态">
+        <button onclick="addParcel()">提交</button>
+        <p id="message"></p>
+
+        <h3>📋 快递信息列表</h3>
+        <input type="text" id="search" placeholder="搜索快递单号" oninput="searchParcel()">
+        <table>
+            <thead>
+                <tr>
+                    <th>快递单号</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="parcelList"></tbody>
+        </table>
+
+        <button onclick="logout()">退出登录</button>
+    </div>
+
+    <script>
+        function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            fetch('/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('loginPanel').style.display = 'none';
+                    document.getElementById('adminPanel').style.display = 'block';
+                    loadParcels();
+                } else {
+                    document.getElementById('loginMessage').innerText = '用户名或密码错误';
+                }
+            })
+            .catch(() => {
+                document.getElementById('loginMessage').innerText = '登录失败，请稍后重试';
+            });
+        }
+
+        function addParcel() {
+            const trackingNumber = document.getElementById('trackingNumber').value;
+            const status = document.getElementById('status').value;
+            fetch('/add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ trackingNumber, status })
+            })
+            .then(response => response.text())
+            .then(message => {
+                document.getElementById('message').innerText = message;
+                loadParcels();
+            })
+            .catch(() => {
+                document.getElementById('message').innerText = '录入失败';
+            });
+        }
+
+        function loadParcels() {
+            fetch('/deliveries')
+                .then(response => response.json())
+                .then(data => {
+                    let rows = '';
+                    data.forEach(parcel => {
+                        rows += `<tr>
+                                    <td>${parcel.trackingNumber}</td>
+                                    <td>${parcel.status}</td>
+                                    <td>
+                                        <button onclick="deleteParcel('${parcel.trackingNumber}')">删除</button>
+                                    </td>
+                                 </tr>`;
+                    });
+                    document.getElementById('parcelList').innerHTML = rows;
+                });
+        }
+
+        function deleteParcel(trackingNumber) {
+            fetch(`/delete/${trackingNumber}`, { method: 'DELETE' })
+                .then(response => response.text())
+                .then(() => {
+                    loadParcels();
+                });
+        }
+
+        function searchParcel() {
+            const query = document.getElementById('search').value.toLowerCase();
+            const rows = document.querySelectorAll('#parcelList tr');
+            rows.forEach(row => {
+                const text = row.innerText.toLowerCase();
+                row.style.display = text.includes(query) ? '' : 'none';
+            });
+        }
+
+        function logout() {
+            fetch('/logout').then(() => window.location.reload());
+        }
+    </script>
+</body>
+</html>
