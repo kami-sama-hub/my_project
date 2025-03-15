@@ -15,7 +15,7 @@ app.use(cors());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({ secret: 'secureKey', resave: false, saveUninitialized: true }));
 
-// 连接 MongoDB（云端数据库）
+// 连接 MongoDB
 mongoose.connect(process.env.MONGO_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
@@ -23,11 +23,6 @@ mongoose.connect(process.env.MONGO_URI, {
 .then(() => console.log('✅ MongoDB Atlas 连接成功'))
 .catch(err => console.error('❌ MongoDB 连接失败:', err));
 
-// 管理员账户（默认账号）
-const ADMIN_USERNAME = "admin";
-const ADMIN_PASSWORD = "admin123";
-
-// 快递数据模型
 const DeliverySchema = new mongoose.Schema({
     trackingNumber: { type: String, unique: true },
     status: String,
@@ -37,70 +32,42 @@ const DeliverySchema = new mongoose.Schema({
 
 const Delivery = mongoose.model('Delivery', DeliverySchema);
 
-// 📌 【1】管理员登录接口
-app.post('/login', (req, res) => {
-    const { username, password } = req.body;
-    if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-        req.session.user = username; // 设置 session
-        return res.json({ success: true });
-    } else {
-        return res.json({ success: false, message: "用户名或密码错误" });
-    }
-});
-
-// 📌 【2】退出登录
-app.get('/logout', (req, res) => {
-    req.session.destroy();
-    res.json({ success: true });
-});
-
-// 📌 【3】获取所有快递数据
-app.get('/deliveries', async (req, res) => {
-    const deliveries = await Delivery.find();
-    res.json(deliveries);
-});
-
-// 📌 【4】新增快递
+// 录入快递信息
 app.post('/add', async (req, res) => {
     const { trackingNumber, status } = req.body;
+
+    if (!trackingNumber || !status) {
+        return res.status(400).json({ message: "快递单号和状态不能为空" });
+    }
+
     try {
+        const existingParcel = await Delivery.findOne({ trackingNumber });
+        if (existingParcel) {
+            return res.status(400).json({ message: "该快递单号已存在" });
+        }
+
         const newParcel = new Delivery({ trackingNumber, status, history: [{ status, updatedAt: new Date() }] });
         await newParcel.save();
-        res.send("快递信息已录入");
-    } catch (error) {
-        res.status(400).send("录入失败，请检查单号是否重复");
+        res.json({ message: "快递信息添加成功" });
+    } catch (err) {
+        res.status(500).json({ message: "服务器错误" });
     }
 });
 
-// 📌 【5】删除快递
-app.delete('/delete/:trackingNumber', async (req, res) => {
-    await Delivery.deleteOne({ trackingNumber: req.params.trackingNumber });
-    res.send("删除成功");
+// 获取所有快递信息
+app.get('/deliveries', async (req, res) => {
+    const parcels = await Delivery.find();
+    res.json(parcels);
 });
 
-// 📌 【6】查询快递状态
-app.get('/track/:trackingNumber', async (req, res) => {
-    const delivery = await Delivery.findOne({ trackingNumber: req.params.trackingNumber });
-    if (!delivery) return res.status(404).send('未找到快递信息');
-    res.json(delivery);
-});
-
-// 📌 【7】查询快递历史
-app.get('/history/:trackingNumber', async (req, res) => {
-    const delivery = await Delivery.findOne({ trackingNumber: req.params.trackingNumber });
-    if (!delivery) return res.status(404).json({ error: '未找到快递历史' });
-    res.json(delivery.history);
-});
-
-// 📌 【8】主页
+// 主页
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// 📌 【9】后台管理
+// 后台管理
 app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
-// 启动服务器
 app.listen(PORT, () => console.log(`🚀 服务器运行在 http://localhost:${PORT}`));
