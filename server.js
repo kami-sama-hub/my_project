@@ -8,14 +8,20 @@ const session = require('express-session');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 解析 JSON
+// 解析 JSON 请求
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(session({ secret: 'secureKey', resave: false, saveUninitialized: true }));
 
-// 连接 MongoDB
+// **🛡️ Session 设置**
+app.use(session({
+    secret: 'secureKey',
+    resave: false,
+    saveUninitialized: true
+}));
+
+// **🔗 连接 MongoDB**
 mongoose.connect(process.env.MONGO_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
@@ -53,9 +59,25 @@ app.post('/login', (req, res) => {
     }
 });
 
+// **🟢 检查是否已登录**
+app.get('/check-login', (req, res) => {
+    if (req.session.user) {
+        res.json({ loggedIn: true });
+    } else {
+        res.json({ loggedIn: false });
+    }
+});
+
+// **🔴 退出登录**
+app.get('/logout', (req, res) => {
+    req.session.destroy(() => {
+        res.json({ success: true });
+    });
+});
+
 // **🔒 确保所有管理 API 需要管理员登录**
 app.use((req, res, next) => {
-    if (req.session.user || req.path === '/' || req.path === '/login' || req.path.startsWith('/public')) {
+    if (req.session.user || req.path === '/' || req.path === '/login' || req.path.startsWith('/public') || req.path === '/check-login' || req.path === '/logout') {
         return next();
     }
     res.status(403).json({ message: "请先登录" });
@@ -84,6 +106,7 @@ app.post('/add', async (req, res) => {
         await newParcel.save();
         res.json({ message: "快递信息添加成功" });
     } catch (err) {
+        console.error("❌ 录入快递失败:", err);
         res.status(500).json({ message: "服务器错误" });
     }
 });
@@ -94,6 +117,7 @@ app.get('/deliveries', async (req, res) => {
         const parcels = await Delivery.find();
         res.json(parcels);
     } catch (error) {
+        console.error("❌ 获取快递信息失败:", error);
         res.status(500).json({ message: "服务器错误" });
     }
 });
@@ -110,6 +134,7 @@ app.delete('/delete/:trackingNumber', async (req, res) => {
             res.status(404).json({ message: "未找到快递信息" });
         }
     } catch (error) {
+        console.error("❌ 删除快递失败:", error);
         res.status(500).json({ message: "服务器错误" });
     }
 });
