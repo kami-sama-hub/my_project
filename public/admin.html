@@ -15,7 +15,7 @@
 </head>
 <body>
     <h1>🔧 青蛙快递后台管理</h1>
-    
+
     <!-- 登录界面 -->
     <div id="loginPanel">
         <h2>管理员登录</h2>
@@ -27,7 +27,7 @@
 
     <!-- 后台管理界面 -->
     <div id="adminPanel">
-        <p>录入新的快递信息：</p>
+        <h3>📦 录入新的快递信息</h3>
         <input type="text" id="trackingNumber" placeholder="请输入快递单号">
         <input type="text" id="status" placeholder="请输入快递状态">
         <button onclick="addParcel()">提交</button>
@@ -54,13 +54,6 @@
             const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value.trim();
 
-            if (!username || !password) {
-                document.getElementById('loginMessage').innerText = '用户名和密码不能为空';
-                return;
-            }
-
-            console.log("🔹 正在尝试登录...");
-
             const response = await fetch('/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -68,8 +61,6 @@
             });
 
             const data = await response.json();
-            console.log("🔹 服务器返回:", data);
-
             if (data.success) {
                 document.getElementById('loginPanel').style.display = 'none';
                 document.getElementById('adminPanel').style.display = 'block';
@@ -83,13 +74,6 @@
             const trackingNumber = document.getElementById('trackingNumber').value.trim();
             const status = document.getElementById('status').value.trim();
 
-            if (!trackingNumber || !status) {
-                document.getElementById('message').innerText = '快递单号和状态不能为空';
-                return;
-            }
-
-            console.log("🔹 提交快递信息...");
-
             const response = await fetch('/add', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -97,40 +81,8 @@
             });
 
             const data = await response.json();
-            console.log("🔹 服务器返回:", data);
-
             document.getElementById('message').innerText = data.message;
             loadParcels();
-        }
-
-        async function loadParcels() {
-            const response = await fetch('/deliveries');
-            const data = await response.json();
-            console.log("🔹 加载快递信息:", data);
-
-            let rows = '';
-            data.forEach(parcel => {
-                rows += `<tr>
-                            <td>${parcel.trackingNumber}</td>
-                            <td>${parcel.status}</td>
-                            <td>
-                                <button onclick="deleteParcel('${parcel.trackingNumber}')">删除</button>
-                            </td>
-                         </tr>`;
-            });
-
-            document.getElementById('parcelList').innerHTML = rows;
-        }
-
-        async function deleteParcel(trackingNumber) {
-            console.log(`🔹 删除快递: ${trackingNumber}`);
-            await fetch(`/delete/${trackingNumber}`, { method: 'DELETE' });
-            loadParcels();
-        }
-
-        function logout() {
-            console.log("🔹 退出登录");
-            fetch('/logout').then(() => window.location.reload());
         }
     </script>
 </body>
