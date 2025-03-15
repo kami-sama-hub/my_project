@@ -50,6 +50,21 @@
     </div>
 
     <script>
+        // 页面加载时，检查是否已经登录
+        window.onload = async function() {
+            try {
+                const response = await fetch('/check-login');
+                const data = await response.json();
+                if (data.loggedIn) {
+                    document.getElementById('loginPanel').style.display = 'none';
+                    document.getElementById('adminPanel').style.display = 'block';
+                    loadParcels();
+                }
+            } catch (error) {
+                console.error("❌ 登录状态检测失败:", error);
+            }
+        };
+
         async function login() {
             const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value.trim();
@@ -82,7 +97,48 @@
 
             const data = await response.json();
             document.getElementById('message').innerText = data.message;
-            loadParcels();
+            if (response.ok) {
+                loadParcels();
+            }
+        }
+
+        async function loadParcels() {
+            const response = await fetch('/deliveries');
+            const data = await response.json();
+
+            let rows = '';
+            data.forEach(parcel => {
+                rows += `<tr>
+                            <td>${parcel.trackingNumber}</td>
+                            <td>${parcel.status}</td>
+                            <td>
+                                <button onclick="deleteParcel('${parcel.trackingNumber}')">删除</button>
+                            </td>
+                         </tr>`;
+            });
+
+            document.getElementById('parcelList').innerHTML = rows;
+        }
+
+        async function deleteParcel(trackingNumber) {
+            const response = await fetch(`/delete/${trackingNumber}`, { method: 'DELETE' });
+            if (response.ok) {
+                loadParcels();
+            }
+        }
+
+        function searchParcel() {
+            const query = document.getElementById('search').value.toLowerCase();
+            const rows = document.querySelectorAll('#parcelList tr');
+            rows.forEach(row => {
+                const text = row.innerText.toLowerCase();
+                row.style.display = text.includes(query) ? '' : 'none';
+            });
+        }
+
+        async function logout() {
+            await fetch('/logout');
+            window.location.reload();
         }
     </script>
 </body>
