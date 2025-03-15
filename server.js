@@ -23,16 +23,45 @@ mongoose.connect(process.env.MONGO_URI, {
 .then(() => console.log('✅ MongoDB Atlas 连接成功'))
 .catch(err => console.error('❌ MongoDB 连接失败:', err));
 
+// 定义快递数据模型
 const DeliverySchema = new mongoose.Schema({
-    trackingNumber: { type: String, unique: true },
-    status: String,
+    trackingNumber: { type: String, unique: true, required: true },
+    status: { type: String, required: true },
     history: [{ status: String, updatedAt: Date }],
     updatedAt: { type: Date, default: Date.now },
 });
 
 const Delivery = mongoose.model('Delivery', DeliverySchema);
 
-// 录入快递信息
+// **✅ 添加管理员账户（可修改）**
+const ADMIN_CREDENTIALS = {
+    username: "admin",
+    password: "admin123"
+};
+
+// **🔑 登录接口**
+app.post('/login', (req, res) => {
+    const { username, password } = req.body;
+
+    console.log(`🔹 收到登录请求: 用户名=${username}，密码=${password}`);
+
+    if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
+        req.session.user = username;
+        return res.json({ success: true });
+    } else {
+        return res.json({ success: false });
+    }
+});
+
+// **🔒 确保所有管理 API 需要管理员登录**
+app.use((req, res, next) => {
+    if (req.session.user || req.path === '/' || req.path === '/login') {
+        return next();
+    }
+    res.status(403).json({ message: "请先登录" });
+});
+
+// **📦 录入快递信息**
 app.post('/add', async (req, res) => {
     const { trackingNumber, status } = req.body;
 
@@ -41,11 +70,18 @@ app.post('/add', async (req, res) => {
     }
 
     try {
-        const existingParcel = await Delivery.findOne({ trackingNumber });
-        if (existingParcel) {
-            return res.status(400).json({ message: "该快递单号已存在" });
+        let parcel = await Delivery.findOne({ trackingNumber });
+
+        if (parcel) {
+            // **📌 更新已有快递状态**
+            parcel.status = status;
+            parcel.history.push({ status, updatedAt: new Date() });
+            parcel.updatedAt = new Date();
+            await parcel.save();
+            return res.json({ message: "快递状态已更新" });
         }
 
+        // **📌 新建快递记录**
         const newParcel = new Delivery({ trackingNumber, status, history: [{ status, updatedAt: new Date() }] });
         await newParcel.save();
         res.json({ message: "快递信息添加成功" });
@@ -54,20 +90,41 @@ app.post('/add', async (req, res) => {
     }
 });
 
-// 获取所有快递信息
+// **📦 获取所有快递信息**
 app.get('/deliveries', async (req, res) => {
-    const parcels = await Delivery.find();
-    res.json(parcels);
+    try {
+        const parcels = await Delivery.find();
+        res.json(parcels);
+    } catch (error) {
+        res.status(500).json({ message: "服务器错误" });
+    }
 });
 
-// 主页
+// **🗑️ 删除快递信息**
+app.delete('/delete/:trackingNumber', async (req, res) => {
+    try {
+        const { trackingNumber } = req.params;
+        const result = await Delivery.findOneAndDelete({ trackingNumber });
+
+        if (result) {
+            res.json({ message: "快递信息已删除" });
+        } else {
+            res.status(404).json({ message: "未找到快递信息" });
+        }
+    } catch (error) {
+        res.status(500).json({ message: "服务器错误" });
+    }
+});
+
+// **🏠 主页**
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// 后台管理
+// **🔑 后台管理**
 app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
+// **🚀 监听端口**
 app.listen(PORT, () => console.log(`🚀 服务器运行在 http://localhost:${PORT}`));
