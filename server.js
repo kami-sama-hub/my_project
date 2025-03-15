@@ -23,7 +23,7 @@ mongoose.connect(process.env.MONGO_URI, {
 .then(() => console.log('✅ MongoDB Atlas 连接成功'))
 .catch(err => console.error('❌ MongoDB 连接失败:', err));
 
-// 定义快递数据模型
+// **📦 定义快递数据模型**
 const DeliverySchema = new mongoose.Schema({
     trackingNumber: { type: String, unique: true, required: true },
     status: { type: String, required: true },
@@ -33,17 +33,17 @@ const DeliverySchema = new mongoose.Schema({
 
 const Delivery = mongoose.model('Delivery', DeliverySchema);
 
-// **✅ 添加管理员账户（可修改）**
+// **✅ 管理员账户（可以修改）**
 const ADMIN_CREDENTIALS = {
     username: "admin",
     password: "admin123"
 };
 
-// **🔑 登录接口**
+// **🔑 登录 API**
 app.post('/login', (req, res) => {
     const { username, password } = req.body;
 
-    console.log(`🔹 收到登录请求: 用户名=${username}，密码=${password}`);
+    console.log(`🔹 收到登录请求: 用户名=${username}, 密码=${password}`);
 
     if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
         req.session.user = username;
@@ -55,7 +55,7 @@ app.post('/login', (req, res) => {
 
 // **🔒 确保所有管理 API 需要管理员登录**
 app.use((req, res, next) => {
-    if (req.session.user || req.path === '/' || req.path === '/login') {
+    if (req.session.user || req.path === '/' || req.path === '/login' || req.path.startsWith('/public')) {
         return next();
     }
     res.status(403).json({ message: "请先登录" });
@@ -73,7 +73,6 @@ app.post('/add', async (req, res) => {
         let parcel = await Delivery.findOne({ trackingNumber });
 
         if (parcel) {
-            // **📌 更新已有快递状态**
             parcel.status = status;
             parcel.history.push({ status, updatedAt: new Date() });
             parcel.updatedAt = new Date();
@@ -81,7 +80,6 @@ app.post('/add', async (req, res) => {
             return res.json({ message: "快递状态已更新" });
         }
 
-        // **📌 新建快递记录**
         const newParcel = new Delivery({ trackingNumber, status, history: [{ status, updatedAt: new Date() }] });
         await newParcel.save();
         res.json({ message: "快递信息添加成功" });
