@@ -64,33 +64,48 @@
     </div>
 
     <script>
-        function trackParcel() {
-            const trackingNumber = document.getElementById('trackingNumber').value;
-            fetch(`/track/${trackingNumber}`)
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('result').innerText = `📦 快递状态：${data.status}`;
+        async function trackParcel() {
+            const trackingNumber = document.getElementById('trackingNumber').value.trim();
+            if (!trackingNumber) {
+                document.getElementById('result').innerText = "❌ 请输入快递单号";
+                return;
+            }
+
+            try {
+                const response = await fetch(`/track/${trackingNumber}`);
+                const data = await response.json();
+
+                if (response.ok) {
+                    document.getElementById('result').innerHTML = `<p>📦 快递状态：${data.status}</p>`;
                     loadHistory(trackingNumber);
-                })
-                .catch(() => {
-                    document.getElementById('result').innerText = '❌ 未找到快递信息';
-                    document.getElementById('history').innerHTML = '';
-                });
+                } else {
+                    document.getElementById('result').innerText = "❌ 未找到快递信息";
+                    document.getElementById('history').innerHTML = "";
+                }
+            } catch (error) {
+                console.error("查询失败:", error);
+                document.getElementById('result').innerText = "❌ 查询失败，请稍后再试";
+            }
         }
 
-        function loadHistory(trackingNumber) {
-            fetch(`/history/${trackingNumber}`)
-                .then(response => response.json())
-                .then(history => {
-                    let historyHTML = '<h3>📜 物流历史</h3>';
+        async function loadHistory(trackingNumber) {
+            try {
+                const response = await fetch(`/history/${trackingNumber}`);
+                const history = await response.json();
+
+                if (response.ok && history.length > 0) {
+                    let historyHTML = "<h3>📜 物流历史</h3>";
                     history.forEach(entry => {
                         historyHTML += `<p>📅 ${new Date(entry.updatedAt).toLocaleString()} - ${entry.status}</p>`;
                     });
                     document.getElementById('history').innerHTML = historyHTML;
-                })
-                .catch(() => {
-                    document.getElementById('history').innerHTML = '';
-                });
+                } else {
+                    document.getElementById('history').innerHTML = "<p>⚠️ 暂无物流记录</p>";
+                }
+            } catch (error) {
+                console.error("加载物流历史失败:", error);
+                document.getElementById('history').innerHTML = "";
+            }
         }
     </script>
 </body>
