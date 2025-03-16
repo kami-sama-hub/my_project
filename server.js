@@ -49,8 +49,6 @@ const ADMIN_CREDENTIALS = {
 app.post('/login', (req, res) => {
     const { username, password } = req.body;
 
-    console.log(`🔹 收到登录请求: 用户名=${username}, 密码=${password}`);
-
     if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
         req.session.user = username;
         return res.json({ success: true });
@@ -61,23 +59,17 @@ app.post('/login', (req, res) => {
 
 // **🟢 检查是否已登录**
 app.get('/check-login', (req, res) => {
-    if (req.session.user) {
-        res.json({ loggedIn: true });
-    } else {
-        res.json({ loggedIn: false });
-    }
+    res.json({ loggedIn: !!req.session.user });
 });
 
 // **🔴 退出登录**
 app.get('/logout', (req, res) => {
-    req.session.destroy(() => {
-        res.json({ success: true });
-    });
+    req.session.destroy(() => res.json({ success: true }));
 });
 
 // **🔒 确保所有管理 API 需要管理员登录**
 app.use((req, res, next) => {
-    if (req.session.user || req.path === '/' || req.path === '/login' || req.path.startsWith('/public') || req.path === '/check-login' || req.path === '/logout') {
+    if (req.session.user || ["/", "/login", "/check-login", "/logout"].includes(req.path) || req.path.startsWith('/public')) {
         return next();
     }
     res.status(403).json({ message: "请先登录" });
@@ -108,6 +100,34 @@ app.post('/add', async (req, res) => {
     } catch (err) {
         console.error("❌ 录入快递失败:", err);
         res.status(500).json({ message: "服务器错误" });
+    }
+});
+
+// **📦 查询快递信息**
+app.get('/track/:trackingNumber', async (req, res) => {
+    try {
+        const parcel = await Delivery.findOne({ trackingNumber: req.params.trackingNumber });
+        if (!parcel) {
+            return res.status(404).json({ message: "未找到快递信息" });
+        }
+        res.json(parcel);
+    } catch (error) {
+        console.error("❌ 查询快递失败:", error);
+        res.status(500).json({ message: "服务器错误" });
+    }
+});
+
+// **📜 获取快递物流历史**
+app.get('/history/:trackingNumber', async (req, res) => {
+    try {
+        const parcel = await Delivery.findOne({ trackingNumber: req.params.trackingNumber });
+        if (!parcel) {
+            return res.status(404).json([]);
+        }
+        res.json(parcel.history);
+    } catch (error) {
+        console.error("❌ 获取物流历史失败:", error);
+        res.status(500).json([]);
     }
 });
 
