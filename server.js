@@ -1,37 +1,18 @@
-require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
-const session = require('express-session');
-const fs = require('fs');
-const { Parser } = require('json2csv');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = 3000;
 
-// **解析 JSON 请求**
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(cors());
-app.use(express.static(path.join(__dirname, 'public')));
-
-// **🛡️ Session 设置**
-app.use(session({
-    secret: 'secureKey',
-    resave: false,
-    saveUninitialized: true
-}));
-
-// **🔗 连接 MongoDB**
-mongoose.connect(process.env.MONGO_URI, {
+mongoose.connect('mongodb://localhost:27017/deliveryDB', {
     useNewUrlParser: true,
     useUnifiedTopology: true,
 })
-.then(() => console.log('✅ MongoDB Atlas 连接成功'))
+.then(() => console.log('✅ MongoDB 连接成功'))
 .catch(err => console.error('❌ MongoDB 连接失败:', err));
 
-// **📦 定义快递数据模型**
 const DeliverySchema = new mongoose.Schema({
     trackingNumber: { type: String, unique: true, required: true },
     status: { type: String, required: true },
@@ -41,50 +22,15 @@ const DeliverySchema = new mongoose.Schema({
 
 const Delivery = mongoose.model('Delivery', DeliverySchema);
 
-// **✅ 管理员账户（可以修改）**
-const ADMIN_CREDENTIALS = {
-    username: "admin",
-    password: "admin123"
-};
+app.use(express.json());
+app.use(cors());
 
-// **🔑 登录 API**
-app.post('/login', (req, res) => {
-    const { username, password } = req.body;
-    if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
-        req.session.user = username;
-        return res.json({ success: true });
-    } else {
-        return res.json({ success: false });
-    }
-});
-
-// **🟢 检查是否已登录**
-app.get('/check-login', (req, res) => {
-    res.json({ loggedIn: !!req.session.user });
-});
-
-// **🔴 退出登录**
-app.get('/logout', (req, res) => {
-    req.session.destroy(() => res.json({ success: true }));
-});
-
-// **🔒 确保所有管理 API 需要管理员登录**
-app.use((req, res, next) => {
-    if (req.session.user || ["/", "/login", "/check-login", "/logout"].includes(req.path) || req.path.startsWith('/public')) {
-        return next();
-    }
-    res.status(403).json({ message: "请先登录" });
-});
-
-// **📦 录入快递信息**
 app.post('/add', async (req, res) => {
     const { trackingNumber, status } = req.body;
-    if (!trackingNumber || !status) {
-        return res.status(400).json({ message: "快递单号和状态不能为空" });
-    }
+    if (!trackingNumber || !status) return res.status(400).json({ message: "快递单号和状态不能为空" });
+
     try {
         let parcel = await Delivery.findOne({ trackingNumber });
-
         if (parcel) {
             parcel.status = status;
             parcel.history.push({ status, updatedAt: new Date() });
@@ -97,90 +43,18 @@ app.post('/add', async (req, res) => {
         await newParcel.save();
         res.json({ message: "快递信息添加成功" });
     } catch (err) {
-        console.error("❌ 录入快递失败:", err);
         res.status(500).json({ message: "服务器错误" });
     }
 });
 
-// **📦 分页获取快递信息**
-app.get('/deliveries', async (req, res) => {
-    const { page = 1, limit = 10 } = req.query;
+app.post('/delete', async (req, res) => {
+    const { trackingNumber } = req.body;
     try {
-        const total = await Delivery.countDocuments();
-        const parcels = await Delivery.find()
-            .sort({ updatedAt: -1 }) // 最新的排前面
-            .skip((page - 1) * limit)
-            .limit(Number(limit));
-        res.json({ total, parcels });
+        await Delivery.deleteOne({ trackingNumber });
+        res.json({ message: "快递信息已删除" });
     } catch (error) {
-        console.error("❌ 获取快递信息失败:", error);
         res.status(500).json({ message: "服务器错误" });
     }
 });
 
-// **📜 获取快递物流历史**
-app.get('/history/:trackingNumber', async (req, res) => {
-    try {
-        const parcel = await Delivery.findOne({ trackingNumber: req.params.trackingNumber });
-        if (!parcel) return res.status(404).json([]);
-        res.json(parcel.history);
-    } catch (error) {
-        console.error("❌ 获取物流历史失败:", error);
-        res.status(500).json([]);
-    }
-});
-
-// **📦 统计快递状态**
-app.get('/stats', async (req, res) => {
-    try {
-        const total = await Delivery.countDocuments();
-        const inProcess = await Delivery.countDocuments({ status: "处理中" });
-        const shipped = await Delivery.countDocuments({ status: "已发货" });
-        res.json({ total, inProcess, shipped });
-    } catch (error) {
-        console.error("❌ 统计快递失败:", error);
-        res.status(500).json({ message: "服务器错误" });
-    }
-});
-
-// **🗑️ 批量删除快递信息**
-app.post('/delete-batch', async (req, res) => {
-    try {
-        const { trackingNumbers } = req.body;
-        await Delivery.deleteMany({ trackingNumber: { $in: trackingNumbers } });
-        res.json({ message: "已批量删除快递信息" });
-    } catch (error) {
-        console.error("❌ 批量删除失败:", error);
-        res.status(500).json({ message: "服务器错误" });
-    }
-});
-
-// **📤 导出 CSV**
-app.get('/export', async (req, res) => {
-    try {
-        const parcels = await Delivery.find();
-        const fields = ['trackingNumber', 'status', 'updatedAt'];
-        const parser = new Parser({ fields });
-        const csv = parser.parse(parcels);
-
-        res.setHeader('Content-Type', 'text/csv');
-        res.setHeader('Content-Disposition', 'attachment; filename=deliveries.csv');
-        res.send(csv);
-    } catch (error) {
-        console.error("❌ CSV 导出失败:", error);
-        res.status(500).json({ message: "服务器错误" });
-    }
-});
-
-// **🏠 主页**
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-// **🔑 后台管理**
-app.get('/admin', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'admin.html'));
-});
-
-// **🚀 监听端口**
 app.listen(PORT, () => console.log(`🚀 服务器运行在 http://localhost:${PORT}`));
