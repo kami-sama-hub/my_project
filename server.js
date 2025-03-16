@@ -4,11 +4,13 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
 const session = require('express-session');
+const fs = require('fs');
+const { Parser } = require('json2csv');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 解析 JSON 请求
+// **解析 JSON 请求**
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cors());
@@ -48,7 +50,6 @@ const ADMIN_CREDENTIALS = {
 // **🔑 登录 API**
 app.post('/login', (req, res) => {
     const { username, password } = req.body;
-
     if (username === ADMIN_CREDENTIALS.username && password === ADMIN_CREDENTIALS.password) {
         req.session.user = username;
         return res.json({ success: true });
@@ -78,11 +79,9 @@ app.use((req, res, next) => {
 // **📦 录入快递信息**
 app.post('/add', async (req, res) => {
     const { trackingNumber, status } = req.body;
-
     if (!trackingNumber || !status) {
         return res.status(400).json({ message: "快递单号和状态不能为空" });
     }
-
     try {
         let parcel = await Delivery.findOne({ trackingNumber });
 
@@ -103,16 +102,18 @@ app.post('/add', async (req, res) => {
     }
 });
 
-// **📦 查询快递信息**
-app.get('/track/:trackingNumber', async (req, res) => {
+// **📦 分页获取快递信息**
+app.get('/deliveries', async (req, res) => {
+    const { page = 1, limit = 10 } = req.query;
     try {
-        const parcel = await Delivery.findOne({ trackingNumber: req.params.trackingNumber });
-        if (!parcel) {
-            return res.status(404).json({ message: "未找到快递信息" });
-        }
-        res.json(parcel);
+        const total = await Delivery.countDocuments();
+        const parcels = await Delivery.find()
+            .sort({ updatedAt: -1 }) // 最新的排前面
+            .skip((page - 1) * limit)
+            .limit(Number(limit));
+        res.json({ total, parcels });
     } catch (error) {
-        console.error("❌ 查询快递失败:", error);
+        console.error("❌ 获取快递信息失败:", error);
         res.status(500).json({ message: "服务器错误" });
     }
 });
@@ -121,9 +122,7 @@ app.get('/track/:trackingNumber', async (req, res) => {
 app.get('/history/:trackingNumber', async (req, res) => {
     try {
         const parcel = await Delivery.findOne({ trackingNumber: req.params.trackingNumber });
-        if (!parcel) {
-            return res.status(404).json([]);
-        }
+        if (!parcel) return res.status(404).json([]);
         res.json(parcel.history);
     } catch (error) {
         console.error("❌ 获取物流历史失败:", error);
@@ -131,30 +130,44 @@ app.get('/history/:trackingNumber', async (req, res) => {
     }
 });
 
-// **📦 获取所有快递信息**
-app.get('/deliveries', async (req, res) => {
+// **📦 统计快递状态**
+app.get('/stats', async (req, res) => {
     try {
-        const parcels = await Delivery.find();
-        res.json(parcels);
+        const total = await Delivery.countDocuments();
+        const inProcess = await Delivery.countDocuments({ status: "处理中" });
+        const shipped = await Delivery.countDocuments({ status: "已发货" });
+        res.json({ total, inProcess, shipped });
     } catch (error) {
-        console.error("❌ 获取快递信息失败:", error);
+        console.error("❌ 统计快递失败:", error);
         res.status(500).json({ message: "服务器错误" });
     }
 });
 
-// **🗑️ 删除快递信息**
-app.delete('/delete/:trackingNumber', async (req, res) => {
+// **🗑️ 批量删除快递信息**
+app.post('/delete-batch', async (req, res) => {
     try {
-        const { trackingNumber } = req.params;
-        const result = await Delivery.findOneAndDelete({ trackingNumber });
-
-        if (result) {
-            res.json({ message: "快递信息已删除" });
-        } else {
-            res.status(404).json({ message: "未找到快递信息" });
-        }
+        const { trackingNumbers } = req.body;
+        await Delivery.deleteMany({ trackingNumber: { $in: trackingNumbers } });
+        res.json({ message: "已批量删除快递信息" });
     } catch (error) {
-        console.error("❌ 删除快递失败:", error);
+        console.error("❌ 批量删除失败:", error);
+        res.status(500).json({ message: "服务器错误" });
+    }
+});
+
+// **📤 导出 CSV**
+app.get('/export', async (req, res) => {
+    try {
+        const parcels = await Delivery.find();
+        const fields = ['trackingNumber', 'status', 'updatedAt'];
+        const parser = new Parser({ fields });
+        const csv = parser.parse(parcels);
+
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename=deliveries.csv');
+        res.send(csv);
+    } catch (error) {
+        console.error("❌ CSV 导出失败:", error);
         res.status(500).json({ message: "服务器错误" });
     }
 });
