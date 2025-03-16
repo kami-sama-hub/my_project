@@ -5,233 +5,161 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>青蛙快递 - 后台管理</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            padding: 20px;
-            background-color: #f8f9fa;
-        }
-
-        .container {
-            max-width: 800px;
-            margin: auto;
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .stats {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 20px;
-            background: #007bff;
-            color: white;
-            padding: 10px;
-            border-radius: 8px;
-            font-size: 18px;
-        }
-
-        input, button {
-            padding: 12px;
-            margin: 10px 0;
-            font-size: 16px;
-            border-radius: 5px;
-            border: 1px solid #ccc;
-            width: 100%;
-            box-sizing: border-box;
-        }
-
-        button {
-            background: #008CBA;
-            color: white;
-            border: none;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        button:hover {
-            background: #005f73;
-        }
-
-        table {
-            width: 100%;
-            margin-top: 20px;
-            border-collapse: collapse;
-            border-radius: 8px;
-            overflow: hidden;
-        }
-
-        th, td {
-            padding: 12px;
-            border: 1px solid #ddd;
-            text-align: center;
-            font-size: 16px;
-        }
-
-        th {
-            background-color: #007bff;
-            color: white;
-        }
-
-        tr:nth-child(even) {
-            background-color: #f2f2f2;
-        }
-
-        .search-box {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-        }
-
-        .pagination {
-            margin-top: 20px;
-        }
-
-        .pagination button {
-            margin: 5px;
-            padding: 8px 15px;
-        }
-
-        @media screen and (max-width: 600px) {
-            .container {
-                max-width: 95%;
-                padding: 15px;
-            }
-
-            th, td {
-                font-size: 12px;
-                padding: 8px;
-            }
-        }
+        body { font-family: Arial, sans-serif; text-align: center; background-color: #f8f9fa; padding: 20px; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); }
+        .stats { display: flex; justify-content: space-between; background: #007bff; color: white; padding: 10px; border-radius: 8px; font-size: 18px; margin-top: 20px; }
+        input, button { padding: 12px; margin: 10px 0; font-size: 16px; border-radius: 5px; border: 1px solid #ccc; width: 100%; box-sizing: border-box; }
+        button { background: #008CBA; color: white; border: none; font-weight: bold; cursor: pointer; }
+        button:hover { background: #005f73; }
+        table { width: 100%; margin-top: 20px; border-collapse: collapse; border-radius: 8px; overflow: hidden; }
+        th, td { padding: 12px; border: 1px solid #ddd; text-align: center; font-size: 16px; }
+        th { background-color: #007bff; color: white; }
+        tr:nth-child(even) { background-color: #f2f2f2; }
+        .search-box { display: flex; gap: 10px; margin-top: 10px; }
+        .pagination { margin-top: 20px; }
+        .pagination button { margin: 5px; padding: 8px 15px; }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🔧 青蛙快递后台管理</h1>
 
-        <div id="loginPanel">
-            <h2>管理员登录</h2>
-            <input type="text" id="username" placeholder="请输入用户名">
-            <input type="password" id="password" placeholder="请输入密码">
-            <button onclick="login()">登录</button>
-            <p id="loginMessage" style="color: red;"></p>
+        <h3>📦 录入新的快递信息</h3>
+        <input type="text" id="trackingNumber" placeholder="请输入快递单号">
+        <input type="text" id="status" placeholder="请输入快递状态">
+        <button onclick="addParcel()">提交</button>
+        <p id="message"></p>
+
+        <h3>📊 统计信息</h3>
+        <div class="stats">
+            <span>总单量: <b id="totalOrders">0</b></span>
+            <span>处理中: <b id="inProcess">0</b></span>
+            <span>已发货: <b id="shipped">0</b></span>
         </div>
 
-        <div id="adminPanel" style="display: none;">
-            <h3>📦 录入新的快递信息</h3>
-            <input type="text" id="trackingNumber" placeholder="请输入快递单号">
-            <input type="text" id="status" placeholder="请输入快递状态">
-            <button onclick="addParcel()">提交</button>
-            <p id="message"></p>
-
-            <h3>📊 统计信息</h3>
-            <div class="stats">
-                <span>总单量: <b id="totalOrders">0</b></span>
-                <span>处理中: <b id="inProcess">0</b></span>
-                <span>已发货: <b id="shipped">0</b></span>
-            </div>
-
-            <h3>📋 快递信息列表</h3>
-            <div class="search-box">
-                <input type="text" id="search" placeholder="搜索快递单号" oninput="searchParcel()">
-                <button onclick="exportData()">📤 导出 CSV</button>
-                <button onclick="deleteSelected()">🗑️ 批量删除</button>
-            </div>
-
-            <table>
-                <thead>
-                    <tr>
-                        <th><input type="checkbox" onclick="toggleAll(this)"></th>
-                        <th>快递单号</th>
-                        <th>状态</th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody id="parcelList"></tbody>
-            </table>
-
-            <div class="pagination">
-                <button onclick="prevPage()">⬅️ 上一页</button>
-                <span>当前页: <b id="currentPage">1</b></span>
-                <button onclick="nextPage()">➡️ 下一页</button>
-            </div>
-
-            <button onclick="logout()" style="margin-top: 20px;">退出登录</button>
+        <h3>📋 快递信息列表</h3>
+        <div class="search-box">
+            <input type="text" id="search" placeholder="搜索快递单号">
+            <button onclick="exportData()">📤 导出 CSV</button>
+            <button onclick="deleteSelected()">🗑️ 批量删除</button>
         </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th><input type="checkbox" onclick="toggleAll(this)"></th>
+                    <th>快递单号</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="parcelList"></tbody>
+        </table>
+
+        <div class="pagination">
+            <button onclick="prevPage()">⬅️ 上一页</button>
+            <span>当前页: <b id="currentPage">1</b></span>
+            <button onclick="nextPage()">➡️ 下一页</button>
+        </div>
+
+        <button onclick="logout()" style="margin-top: 20px;">退出登录</button>
     </div>
 
     <script>
         let currentPage = 1;
         const limit = 10;
 
-        async function loadParcels(page = 1) {
-            const response = await fetch(`/deliveries?page=${page}&limit=${limit}`);
-            const { total, parcels } = await response.json();
-            document.getElementById("totalOrders").innerText = total;
-            document.getElementById("currentPage").innerText = page;
+        async function addParcel() {
+            const trackingNumber = document.getElementById("trackingNumber").value.trim();
+            const status = document.getElementById("status").value.trim();
 
-            let rows = '';
-            parcels.forEach(parcel => {
-                rows += `<tr>
-                    <td><input type="checkbox" value="${parcel.trackingNumber}"></td>
-                    <td>${parcel.trackingNumber}</td>
-                    <td>${parcel.status}</td>
-                    <td><button style="background: red; padding: 8px;" onclick="deleteParcel('${parcel.trackingNumber}')">删除</button></td>
-                </tr>`;
-            });
+            if (!trackingNumber || !status) return alert("❌ 快递单号和状态不能为空！");
 
-            document.getElementById('parcelList').innerHTML = rows;
-        }
+            try {
+                const response = await fetch("/add", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ trackingNumber, status })
+                });
 
-        function prevPage() {
-            if (currentPage > 1) {
-                currentPage--;
-                loadParcels(currentPage);
+                const result = await response.json();
+                alert(result.message);
+                loadParcels();
+            } catch (error) {
+                alert("❌ 录入失败，请检查服务器是否正常运行！");
             }
         }
 
-        function nextPage() {
-            currentPage++;
-            loadParcels(currentPage);
+        async function loadParcels(page = 1) {
+            try {
+                const response = await fetch(`/deliveries?page=${page}&limit=${limit}`);
+                const { total, parcels } = await response.json();
+
+                document.getElementById("totalOrders").innerText = total;
+                document.getElementById("currentPage").innerText = page;
+
+                let rows = '';
+                parcels.forEach(parcel => {
+                    rows += `<tr>
+                        <td><input type="checkbox" value="${parcel.trackingNumber}"></td>
+                        <td>${parcel.trackingNumber}</td>
+                        <td>${parcel.status}</td>
+                        <td><button onclick="deleteParcel('${parcel.trackingNumber}')">删除</button></td>
+                    </tr>`;
+                });
+
+                document.getElementById('parcelList').innerHTML = rows;
+            } catch (error) {
+                alert("❌ 无法加载快递数据！");
+            }
         }
 
-        function toggleAll(source) {
-            document.querySelectorAll("tbody input[type=checkbox]").forEach(cb => cb.checked = source.checked);
+        async function deleteParcel(trackingNumber) {
+            try {
+                await fetch(`/delete-batch`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ trackingNumbers: [trackingNumber] })
+                });
+                loadParcels();
+            } catch (error) {
+                alert("❌ 删除失败，请检查服务器！");
+            }
         }
 
         async function deleteSelected() {
             const selected = Array.from(document.querySelectorAll("tbody input[type=checkbox]:checked"))
                 .map(cb => cb.value);
 
-            if (selected.length === 0) return alert("请选择要删除的订单");
+            if (selected.length === 0) return alert("请选择要删除的订单！");
 
-            await fetch('/delete-batch', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ trackingNumbers: selected })
-            });
-
-            loadParcels(currentPage);
+            try {
+                await fetch('/delete-batch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ trackingNumbers: selected })
+                });
+                loadParcels();
+            } catch (error) {
+                alert("❌ 批量删除失败，请检查服务器！");
+            }
         }
 
         async function exportData() {
             window.location.href = '/export?format=csv';
         }
 
+        function toggleAll(source) {
+            document.querySelectorAll("tbody input[type=checkbox]").forEach(cb => cb.checked = source.checked);
+        }
+
         async function logout() {
-            await fetch('/logout');
+            await fetch("/logout");
             window.location.reload();
         }
 
-        window.onload = async function () {
-            const response = await fetch('/check-login');
-            const data = await response.json();
-            if (data.loggedIn) {
-                document.getElementById('loginPanel').style.display = 'none';
-                document.getElementById('adminPanel').style.display = 'block';
-                loadParcels();
-            }
+        window.onload = function () {
+            loadParcels();
         };
     </script>
 </body>
