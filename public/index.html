@@ -5,71 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>青蛙快递 - 快递查询</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            padding: 20px;
-            background-color: #f0f8ff;
-        }
-
-        .container {
-            max-width: 400px;
-            margin: auto;
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        .logo {
-            width: 120px; /* 控制 logo 大小 */
-            margin-bottom: 10px;
-        }
-
-        .input-group {
-            display: flex;
-            gap: 10px;
-            margin-top: 12px;
-        }
-
-        input {
-            flex: 1;
-            padding: 12px;
-            font-size: 18px;
-            border-radius: 5px;
-            border: 1px solid #ccc;
-        }
-
-        button {
-            padding: 12px;
-            font-size: 18px;
-            border-radius: 5px;
-            background: #008CBA;
-            color: white;
-            border: none;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        button:hover {
-            background: #005f73;
-        }
-
-        #result, #history {
-            margin-top: 20px;
-            font-size: 16px;
-            text-align: left;
-        }
+        body { font-family: Arial, sans-serif; text-align: center; background-color: #f0f8ff; padding: 20px; }
+        .container { max-width: 400px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); }
+        .input-group { display: flex; gap: 10px; margin-top: 12px; }
+        input { flex: 1; padding: 12px; font-size: 18px; border-radius: 5px; border: 1px solid #ccc; }
+        button { padding: 12px; font-size: 18px; border-radius: 5px; background: #008CBA; color: white; border: none; font-weight: bold; cursor: pointer; }
+        button:hover { background: #005f73; }
+        #result, #history { margin-top: 20px; font-size: 16px; text-align: left; }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- ✅ 添加 Logo -->
-        <img src="logo.png" alt="青蛙快递" class="logo">
-
-        <!-- ✅ 修改标题，去掉 🐸 -->
         <h1>青蛙快递查询</h1>
-
         <p>请输入快递单号：</p>
         <div class="input-group">
             <input type="text" id="trackingNumber" placeholder="输入快递单号">
@@ -82,25 +29,18 @@
     <script>
         async function trackParcel() {
             const trackingNumber = document.getElementById('trackingNumber').value.trim();
-            if (!trackingNumber) {
-                document.getElementById('result').innerText = "❌ 请输入快递单号";
-                return;
-            }
+            if (!trackingNumber) return document.getElementById('result').innerText = "❌ 请输入快递单号";
 
             try {
                 const response = await fetch(`/track/${trackingNumber}`);
                 const data = await response.json();
+                if (!response.ok) throw new Error(data.message || "查询失败");
 
-                if (response.ok) {
-                    document.getElementById('result').innerHTML = `<p>📦 快递状态：${data.status}</p>`;
-                    loadHistory(trackingNumber);
-                } else {
-                    document.getElementById('result').innerText = "❌ 未找到快递信息";
-                    document.getElementById('history').innerHTML = "";
-                }
+                document.getElementById('result').innerHTML = `<p>📦 快递状态：<b>${data.status}</b></p>`;
+                loadHistory(trackingNumber);
             } catch (error) {
-                console.error("查询失败:", error);
-                document.getElementById('result').innerText = "❌ 查询失败，请稍后再试";
+                document.getElementById('result').innerText = "❌ " + error.message;
+                document.getElementById('history').innerHTML = "";
             }
         }
 
@@ -108,19 +48,13 @@
             try {
                 const response = await fetch(`/history/${trackingNumber}`);
                 const history = await response.json();
+                if (!response.ok || history.length === 0) throw new Error("暂无物流记录");
 
-                if (response.ok && history.length > 0) {
-                    let historyHTML = "<h3>📜 物流历史</h3>";
-                    history.forEach(entry => {
-                        historyHTML += `<p>📅 ${new Date(entry.updatedAt).toLocaleString()} - ${entry.status}</p>`;
-                    });
-                    document.getElementById('history').innerHTML = historyHTML;
-                } else {
-                    document.getElementById('history').innerHTML = "<p>⚠️ 暂无物流记录</p>";
-                }
+                let historyHTML = "<h3>📜 物流历史</h3>";
+                history.forEach(entry => historyHTML += `<p>📅 ${new Date(entry.updatedAt).toLocaleString()} - ${entry.status}</p>`);
+                document.getElementById('history').innerHTML = historyHTML;
             } catch (error) {
-                console.error("加载物流历史失败:", error);
-                document.getElementById('history').innerHTML = "";
+                document.getElementById('history').innerHTML = "<p>⚠️ " + error.message + "</p>";
             }
         }
     </script>
