@@ -11,6 +11,7 @@
             padding: 20px;
             background-color: #f0f8ff;
         }
+
         .container {
             max-width: 400px;
             margin: auto;
@@ -19,11 +20,18 @@
             border-radius: 10px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
+
+        .logo {
+            width: 120px; /* 控制 logo 大小 */
+            margin-bottom: 10px;
+        }
+
         .input-group {
             display: flex;
             gap: 10px;
             margin-top: 12px;
         }
+
         input {
             flex: 1;
             padding: 12px;
@@ -31,6 +39,7 @@
             border-radius: 5px;
             border: 1px solid #ccc;
         }
+
         button {
             padding: 12px;
             font-size: 18px;
@@ -41,9 +50,11 @@
             font-weight: bold;
             cursor: pointer;
         }
+
         button:hover {
             background: #005f73;
         }
+
         #result, #history {
             margin-top: 20px;
             font-size: 16px;
@@ -53,7 +64,12 @@
 </head>
 <body>
     <div class="container">
-        <h1>🐸 青蛙快递查询</h1>
+        <!-- ✅ 添加 Logo -->
+        <img src="logo.png" alt="青蛙快递" class="logo">
+
+        <!-- ✅ 修改标题，去掉 🐸 -->
+        <h1>青蛙快递查询</h1>
+
         <p>请输入快递单号：</p>
         <div class="input-group">
             <input type="text" id="trackingNumber" placeholder="输入快递单号">
