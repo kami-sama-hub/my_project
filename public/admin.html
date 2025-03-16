@@ -11,16 +11,16 @@
             padding: 20px;
             background-color: #f8f9fa;
         }
-        
+
         .container {
-            max-width: 500px;
+            max-width: 800px; /* PC端更宽，避免页面太小 */
             margin: auto;
             background: white;
-            padding: 20px;
+            padding: 30px;
             border-radius: 10px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
-        
+
         input, button {
             padding: 12px;
             margin: 10px 0;
@@ -30,7 +30,7 @@
             width: 100%;
             box-sizing: border-box;
         }
-        
+
         button {
             background: #008CBA;
             color: white;
@@ -49,13 +49,14 @@
             border-collapse: collapse;
             border-radius: 8px;
             overflow: hidden;
+            min-width: 600px; /* PC 端不显得过窄 */
         }
 
         th, td {
             padding: 12px;
             border: 1px solid #ddd;
             text-align: center;
-            font-size: 14px;
+            font-size: 16px;
         }
 
         th {
@@ -75,7 +76,7 @@
 
         @media screen and (max-width: 600px) {
             .container {
-                max-width: 95%;
+                max-width: 95%; /* 手机端改为 95% 宽度 */
                 padding: 15px;
             }
 
@@ -87,6 +88,10 @@
             th, td {
                 font-size: 12px;
                 padding: 10px;
+            }
+
+            table {
+                min-width: 100%; /* 让表格在手机端占满 */
             }
 
             .search-box {
