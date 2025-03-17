@@ -12,15 +12,16 @@ if (!MONGO_URI) {
     process.exit(1);
 }
 
-// 连接 MongoDB Atlas
+// ✅ 连接 MongoDB Atlas
 mongoose.connect(MONGO_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
+    dbName: "deliveryDB" // 确保连接到正确的数据库
 })
 .then(() => console.log('✅ MongoDB 连接成功'))
 .catch(err => console.error('❌ MongoDB 连接失败:', err));
 
-// 定义 Schema
+// ✅ 定义 Schema
 const DeliverySchema = new mongoose.Schema({
     trackingNumber: { type: String, unique: true, required: true },
     status: { type: String, required: true },
@@ -31,7 +32,12 @@ const DeliverySchema = new mongoose.Schema({
 const Delivery = mongoose.model('Delivery', DeliverySchema);
 
 app.use(express.json());
-app.use(cors());
+app.use(cors({ origin: '*' })); // 允许所有来源访问
+
+// ✅ 主页路由 (Render 需要这个)
+app.get('/', (req, res) => {
+    res.send("🚀 服务器运行正常，MongoDB 连接成功！");
+});
 
 // ✅ 添加快递信息或更新状态
 app.post('/add', async (req, res) => {
@@ -71,20 +77,25 @@ app.get('/deliveries', async (req, res) => {
     }
 });
 
-// ✅ 批量删除快递信息
+// ✅ 删除快递信息（兼容单个和批量）
 app.post('/delete', async (req, res) => {
     const { trackingNumbers } = req.body;
-    if (!Array.isArray(trackingNumbers) || trackingNumbers.length === 0) {
+
+    if (!trackingNumbers || (Array.isArray(trackingNumbers) && trackingNumbers.length === 0)) {
         return res.status(400).json({ message: "请提供要删除的快递单号" });
     }
 
     try {
-        await Delivery.deleteMany({ trackingNumber: { $in: trackingNumbers } });
+        if (Array.isArray(trackingNumbers)) {
+            await Delivery.deleteMany({ trackingNumber: { $in: trackingNumbers } });
+        } else {
+            await Delivery.deleteOne({ trackingNumber: trackingNumbers });
+        }
         res.json({ message: "快递信息已删除" });
     } catch (error) {
         res.status(500).json({ message: "服务器错误" });
     }
 });
 
-// ✅ 服务器启动
+// ✅ 启动服务器
 app.listen(PORT, () => console.log(`🚀 服务器运行在 http://localhost:${PORT}`));
